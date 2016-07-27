@@ -1,0 +1,4 @@
+{
+	"src/cfgparse/*.clj": {"type": "src"},
+	"*.clj": {"type": "proj"}
+}
