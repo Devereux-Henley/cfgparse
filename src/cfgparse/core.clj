@@ -7,8 +7,8 @@
 
 (defn export
   "exports input data to a .xlsx file"
-  [outputdata]
-  (let [wb (xl/create-workbook "main"
+  [outputdata title]
+  (let [wb (xl/create-workbook title
                             outputdata)]
     (xl/save-workbook! "output.xlsx" wb)))
 
@@ -21,7 +21,7 @@
         (chunkfile (rest lines) accumulator current-count)
         (if (starts-with? trimmedline "}")
           (chunkfile (rest lines) (assoc accumulator (inc current-count) {}) (inc current-count))
-          (let [bits (split trimmedline #" " 2)
+          (let [bits (split trimmedline #"\s+" 2)
                 stringbits (map str bits)
                 linekey (keyword (first stringbits))
                 linevalue (trim (last stringbits))]
@@ -57,13 +57,19 @@
       (conj (get arr (.indexOf headers header)) chunkval)
       (conj (get arr (.indexOf headers header)) ""))))
 
+;;Need to only remove completely empty rows. Not partials.
+(defn remove-empty-entries
+  [colls]
+  (filter #(not (empty? %)) colls))
+
 (defn columns-to-rows
-  [& colls]
+  [colls]
   (partition (count colls) (apply interleave colls)))
 
+;;Need to only remove completely empty rows. Not partials
 (defn clean-row-entries
   [rows]
-  (apply filter #(not (empty? %)) rows))
+  (apply (fn [& colls] (for [coll colls] (filter #(not (empty? %)) coll))) rows))
 
 (defn maptoarr
   [input-map headers]
@@ -76,7 +82,7 @@
         (let [current-chunk (get input-map cnt)
               new-entry-arr (vec (create-entry headers output-array current-chunk))
               incremented-count (inc cnt)]
-          (recur incremented-count new-entry-arr)))))) ;;need output-array logic for recur
+          (recur incremented-count new-entry-arr))))))
 
 (defn- main
   [& args]
@@ -86,8 +92,17 @@
             filenames (split (get params 0) #",")
             headers (split (get params 1) #",")
             title (get params 2)]
-        (readin filenames)))))
+        (-> filenames
+          (readin)
+          (maptoarr headers)
+          (columns-to-rows)
+          (export title))))))
 
-
-
-(pprint (clean-row-entries (columns-to-rows (maptoarr (readin ["checkcommands.cfg"]) ["command_line" "command_name"]))))
+(defn- test-main
+  "Just for testing functionality of main w/o doseq"
+  []
+  (-> ["tmp/checkcommands.cfg"]
+    (readin)
+    (maptoarr ["command_line" "command_name"])
+    (columns-to-rows)
+    (export "commands"))) 
