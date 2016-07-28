@@ -5,12 +5,19 @@
            [clojure.string :refer [split starts-with? blank? trim]])
  (:gen-class))
 
+(def outputfile
+  "output.xlsx")
+
 (defn export
   "exports input data to a .xlsx file"
   [outputdata title]
-  (let [wb (xl/create-workbook title
-                            outputdata)]
-    (xl/save-workbook! "output.xlsx" wb)))
+  (if (.exists (io/as-file outputfile))
+    (let [wb (xl/load-workbook outputfile)]
+      (xl/add-rows! (xl/add-sheet! wb title) outputdata)
+      (xl/save-workbook! outputfile wb))
+    (let [wb (xl/create-workbook title
+                                 outputdata)]
+      (xl/save-workbook! outputfile wb))))
 
 (defn chunkfile 
   "Chunks a file into a map of definitions ordered by number"
@@ -41,13 +48,12 @@
   [filenames]
   (loop [file (first filenames)
          files (rest filenames)
-         iteration 0
          acc {}]
     (if file
       (->>  file
            (chunkfile-wrap (count acc))
            (merge acc)
-           (recur (first files) (rest files) (inc iteration)))
+           (recur (first files) (rest files)))
       acc)))
         
 (defn create-entry
@@ -101,8 +107,8 @@
 (defn- test-main
   "Just for testing functionality of main w/o doseq"
   []
-  (-> ["tmp/checkcommands.cfg"]
+  (-> ["tmp/checkcommands.cfg" "tmp/misccommands.cfg" "tmp/pagerduty_nagios.cfg"]
     (readin)
-    (maptoarr ["command_line" "command_name"])
+    (maptoarr ["command_name" "command_line"])
     (columns-to-rows)
     (export "commands"))) 
