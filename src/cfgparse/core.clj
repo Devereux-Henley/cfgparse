@@ -2,15 +2,18 @@
  (:require [dk.ative.docjure.spreadsheet :as xl]
            [clojure.java.io :as io]
            [clojure.pprint :refer [pprint]]
-           [clojure.string :refer [split starts-with? blank? trim]])
+           [clojure.string :refer [split starts-with? blank? trim]]
+           [medley.core :refer [map-kv]])
  (:gen-class))
 
+;;Name of excel output file
 (def outputfile
   "output.xlsx")
 
 (defn export
-  "exports input data to a .xlsx file"
-  [outputdata title]
+  "exports input data to a .xlsx file
+  [['foo' 'bar']] 'sheet' => nil"
+  [title outputdata]
   (if (.exists (io/as-file outputfile))
     (let [wb (xl/load-workbook outputfile)]
       (xl/add-rows! (xl/add-sheet! wb title) outputdata)
@@ -20,7 +23,8 @@
       (xl/save-workbook! outputfile wb))))
 
 (defn chunkfile 
-  "Chunks a file into a map of definitions ordered by number"
+  "Chunks a file into a map of definitions ordered by number
+  '('foo\tbar') {} 0 => {0 {:foo 'bar'} 1 {}}"
   [lines accumulator current-count]
   (if-let [line (first lines)]
     (let [trimmedline (trim line)]
@@ -36,7 +40,8 @@
     accumulator))
 
 (defn chunkfile-wrap
-  "Wraps chunkfile by opening input file and initializing map at a specified count"
+  "Wraps chunkfile by opening input file and initializing map at a specified count
+  'foo.cfg' => {0 {:command_name 'wiz'}}"
   [current-count filename]
   (with-open [rdr (io/reader filename)]
     (let [file (line-seq rdr)]
@@ -44,7 +49,8 @@
         
 
 (defn readin
-  "takes a list of filenames and reads the files into a map"
+  "takes a list of filenames and reads the files into a map.
+  ['foo.cfg' 'bar.cfg'] => {0 {:command_name 'wiz'} 1 {:command_name 'woz'}}"
   [filenames]
   (loop [file (first filenames)
          files (rest filenames)
@@ -54,61 +60,78 @@
            (chunkfile-wrap (count acc))
            (merge acc)
            (recur (first files) (rest files)))
-      acc)))
-        
-(defn create-entry
-  [headers arr input-chunk]
-  (for [header headers]
-    (if-let [chunkval ((keyword header) input-chunk)]
-      (conj (get arr (.indexOf headers header)) chunkval)
-      (conj (get arr (.indexOf headers header)) ""))))
+      acc)))    
 
-;;Need to only remove completely empty rows. Not partials.
-(defn remove-empty-entries
-  [colls]
-  (filter #(not (empty? %)) colls))
+;;Maybe replace all this stuff with (map #(get-in {0 {:fish "salmon" :foo "bar"}} [0 %]) [:fish :foo])
+;;i.e. (map #(get-in input-map [num %]) headers)
 
 (defn columns-to-rows
+  "Inverts a 2d vector.
+  [['foo' 'bar'] ['baz' 'boo']] -> [['foo' 'baz'] ['bar' 'boo']]"
   [colls]
   (partition (count colls) (apply interleave colls)))
 
-;;Need to only remove completely empty rows. Not partials
-(defn clean-row-entries
-  [rows]
-  (apply (fn [& colls] (for [coll colls] (filter #(not (empty? %)) coll))) rows))
+(defn create-entry
+  [headers arr input-chunk]
+  (if (empty? input-chunk)
+    arr
+    (mapv
+      conj
+      arr
+      (vec (map #(if-let [hval ((keyword %) input-chunk)] hval "") headers)))))
+
+(defn split-entries
+  [list-input idx]
+  (let [arr (vec list-input)]
+    (loop [split-list (split (get arr idx) #",")
+           acc []]
+      (if-let [split-item (first split-list)]
+        (recur (rest split-list) (conj acc (assoc arr idx split-item)))
+        acc))))
 
 (defn maptoarr
-  [input-map headers]
-  (let [arr (vec (for [header headers] [header]))
+  [headers input-map]
+  (let [arr (vec (map #(vector %) headers))
         input-count (count input-map)]
     (loop [cnt 0
            output-array arr]
       (if (> cnt input-count)
         output-array
         (let [current-chunk (get input-map cnt)
-              new-entry-arr (vec (create-entry headers output-array current-chunk))
+              new-arr (create-entry headers output-array current-chunk)
               incremented-count (inc cnt)]
-          (recur incremented-count new-entry-arr))))))
+          (recur incremented-count new-arr))))))
 
 (defn- main
   [& args]
-  (with-open [rdr (io/reader "conf.txt")]
+  (with-open [rdr (io/reader "tmp/conf.txt")]
     (doseq [line (line-seq rdr)]
       (let [params (split line #":")
             filenames (split (get params 0) #",")
             headers (split (get params 1) #",")
-            title (get params 2)]
-        (-> filenames
-          (readin)
-          (maptoarr headers)
-          (columns-to-rows)
-          (export title))))))
+            title (get params 2)
+            splitfield (get params 3)]
+        (if splitfield
+          (->> filenames
+               (readin)
+               (maptoarr headers)
+               (columns-to-rows)
+               (map #(split-entries % (.indexOf headers splitfield)))
+               (mapcat identity)
+               (export title))
+          (->> filenames
+               (readin)
+               (maptoarr headers)
+               (columns-to-rows)
+               (export title)))))))
 
 (defn- test-main
   "Just for testing functionality of main w/o doseq"
   []
-  (-> ["tmp/checkcommands.cfg" "tmp/misccommands.cfg" "tmp/pagerduty_nagios.cfg"]
+  (->> ["tmp/jboss-services.cfg"]
     (readin)
-    (maptoarr ["command_name" "command_line"])
+    (maptoarr ["use" "service_description" "check_command" "host_name"])
     (columns-to-rows)
+    (map #(split-entries % 3))
+    (mapcat identity)
     (export "commands"))) 
