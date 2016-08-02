@@ -1,7 +1,6 @@
 (ns cfgparse.core
  (:require [dk.ative.docjure.spreadsheet :as xl]
            [clojure.java.io :as io]
-           [clojure.pprint :refer [pprint]]
            [clojure.string :refer [split starts-with? blank? trim]])
  (:gen-class))
 
