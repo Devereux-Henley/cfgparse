@@ -1,6 +1,6 @@
 # cfgparse
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure tool to transform groups of cfg files to a readable excel format.
 
 ## Usage
 

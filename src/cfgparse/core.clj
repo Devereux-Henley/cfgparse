@@ -1,7 +1,8 @@
 (ns cfgparse.core
  (:require [dk.ative.docjure.spreadsheet :as xl]
            [clojure.java.io :as io]
-           [clojure.string :refer [split starts-with? blank? trim]])
+           [clojure.string :refer [split starts-with? blank? trim]]
+           [clojure.edn :as edn])
  (:gen-class))
 
 ;;Name of excel output file
@@ -103,18 +104,36 @@
               incremented-count (inc cnt)]
           (recur incremented-count new-arr))))))
 
+(defrecord Sheet-Data
+  [title files headers split-item])
+
+(defn parse-sheet-data
+  [pair]
+  (let [title (name (first pair))
+        conf-map (second pair)
+        headers (:headers conf-map)
+        files (:files conf-map)
+        split-item (:split conf-map)]
+    (Sheet-Data. title files headers split-item)))
+
+(defn read-config
+  [conf-file-path]
+  (with-open [r (java.io.PushbackReader. (io/reader conf-file-path))]
+    (let [edn-seq (repeatedly (partial edn/read {:eof :end} r))
+          conf-seq (partition 2 (take-while (partial not= :end) edn-seq))]
+      (doall (map parse-sheet-data conf-seq)))))
+
 (defn -main
   [& args]
   (io/delete-file outputfile true)
   (if-let [conf-file-path (nth args 0 nil)]
     (if (.exists (io/as-file conf-file-path))
-      (with-open [rdr (io/reader conf-file-path)]
-        (doseq [line (line-seq rdr)]
-          (let [params (split line #":")
-                filenames (split (get params 0) #",")
-                headers (split (get params 1) #",")
-                title (get params 2)
-                splitfield (get params 3)]
+      (let [sheets (read-config conf-file-path)]
+        (doseq [sheet sheets]
+          (let [filenames (:files sheet)
+                headers (:headers sheet)
+                title (:title sheet)
+                splitfield (:split-item sheet)]
             (if splitfield
               (->> filenames
                   (readin)
