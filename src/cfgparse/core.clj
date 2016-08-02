@@ -2,8 +2,7 @@
  (:require [dk.ative.docjure.spreadsheet :as xl]
            [clojure.java.io :as io]
            [clojure.pprint :refer [pprint]]
-           [clojure.string :refer [split starts-with? blank? trim]]
-           [medley.core :refer [map-kv]])
+           [clojure.string :refer [split starts-with? blank? trim]])
  (:gen-class))
 
 ;;Name of excel output file
@@ -33,9 +32,8 @@
         (if (starts-with? trimmedline "}")
           (chunkfile (rest lines) (assoc accumulator (inc current-count) {}) (inc current-count))
           (let [bits (split trimmedline #"\s+" 2)
-                stringbits (map str bits)
-                linekey (keyword (first stringbits))
-                linevalue (trim (last stringbits))]
+                linekey (keyword (first bits))
+                linevalue (trim (last bits))]
             (chunkfile (rest lines) (assoc-in accumulator [current-count linekey] linevalue) current-count)))))
     accumulator))
 
@@ -72,6 +70,8 @@
   (partition (count colls) (apply interleave colls)))
 
 (defn create-entry
+  "Updates array with new entry from input-chunk that matches headers
+  ['cat' 'dog'] [['foo'] ['bar']] {:cat 'baz'} => [['foo' 'baz'] ['bar' '']]"
   [headers arr input-chunk]
   (if (empty? input-chunk)
     arr
@@ -81,6 +81,8 @@
       (vec (map #(if-let [hval ((keyword %) input-chunk)] hval "") headers)))))
 
 (defn split-entries
+  "Creates duplicate rows based on comma split.
+  '('foo' 'bar,baz') => [['foo' 'bar] ['foo' 'baz']]"
   [list-input idx]
   (let [arr (vec list-input)]
     (loop [split-list (split (get arr idx) #",")
@@ -102,7 +104,7 @@
               incremented-count (inc cnt)]
           (recur incremented-count new-arr))))))
 
-(defn- main
+(defn -main
   [& args]
   (with-open [rdr (io/reader "tmp/conf.txt")]
     (doseq [line (line-seq rdr)]
