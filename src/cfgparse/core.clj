@@ -60,9 +60,6 @@
            (recur (first files) (rest files)))
       acc)))    
 
-;;Maybe replace all this stuff with (map #(get-in {0 {:fish "salmon" :foo "bar"}} [0 %]) [:fish :foo])
-;;i.e. (map #(get-in input-map [num %]) headers)
-
 (defn columns-to-rows
   "Inverts a 2d vector.
   [['foo' 'bar'] ['baz' 'boo']] -> [['foo' 'baz'] ['bar' 'boo']]"
@@ -114,7 +111,7 @@
         headers (:headers conf-map)
         files (:files conf-map)
         split-item (:split conf-map)]
-    (Sheet-Data. title files headers split-item)))
+    (->Sheet-Data title files headers split-item)))
 
 (defn read-config
   [conf-file-path]
