@@ -106,23 +106,28 @@
 
 (defn -main
   [& args]
-  (with-open [rdr (io/reader "tmp/conf.txt")]
-    (doseq [line (line-seq rdr)]
-      (let [params (split line #":")
-            filenames (split (get params 0) #",")
-            headers (split (get params 1) #",")
-            title (get params 2)
-            splitfield (get params 3)]
-        (if splitfield
-          (->> filenames
-               (readin)
-               (maptoarr headers)
-               (columns-to-rows)
-               (map #(split-entries % (.indexOf headers splitfield)))
-               (mapcat identity)
-               (export title))
-          (->> filenames
-               (readin)
-               (maptoarr headers)
-               (columns-to-rows)
-               (export title))))))) 
+  (io/delete-file outputfile true)
+  (if-let [conf-file-path (nth args 0 nil)]
+    (if (.exists (io/as-file conf-file-path))
+      (with-open [rdr (io/reader conf-file-path)]
+        (doseq [line (line-seq rdr)]
+          (let [params (split line #":")
+                filenames (split (get params 0) #",")
+                headers (split (get params 1) #",")
+                title (get params 2)
+                splitfield (get params 3)]
+            (if splitfield
+              (->> filenames
+                  (readin)
+                  (maptoarr headers)
+                  (columns-to-rows)
+                  (map #(split-entries % (.indexOf headers splitfield)))
+                  (mapcat identity)
+                  (export title))
+              (->> filenames
+                  (readin)
+                  (maptoarr headers)
+                  (columns-to-rows)
+                  (export title))))))
+      (println (str conf-file-path " could not be found.")))
+    (println "cfgparse requires relative configuration file path as first argument."))) 
