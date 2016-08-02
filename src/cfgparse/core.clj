@@ -123,15 +123,4 @@
                (readin)
                (maptoarr headers)
                (columns-to-rows)
-               (export title)))))))
-
-(defn- test-main
-  "Just for testing functionality of main w/o doseq"
-  []
-  (->> ["tmp/jboss-services.cfg"]
-    (readin)
-    (maptoarr ["use" "service_description" "check_command" "host_name"])
-    (columns-to-rows)
-    (map #(split-entries % 3))
-    (mapcat identity)
-    (export "commands"))) 
+               (export title))))))) 
