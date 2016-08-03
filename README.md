@@ -14,7 +14,7 @@ A .edn config file must be included as the first argument.
               :dirs ["tmp"] } ;;Populates files with every file in the directory and its subdirectories.
               
 :other_sheet {:headers ["baz" "boo" "bob"] ;;Number of headers can be varied
-              :dirs ["test2"] ;;Either dirs or files may be used if both aren't needed.}
+              :dirs ["test2"] };;Either dirs or files may be used if both aren't needed.
 ```
 
 ## License
