@@ -89,6 +89,8 @@
         acc))))
 
 (defn maptoarr
+  "Converts file map to 2d vector
+  {0 {:foo 'bar' :cat 'dog'} 1 {:foo 'baz' :cat 'bat'}} => [['bar' 'baz'] ['dog' 'bat']]"
   [headers input-map]
   (let [arr (vec (map #(vector %) headers))
         input-count (count input-map)]
@@ -102,25 +104,42 @@
           (recur incremented-count new-arr))))))
 
 (defrecord Sheet-Data
-  [title files headers split-item])
+  [title files dirs headers split-item])
 
 (defn parse-sheet-data
+  "Convert config file kv-pair to Sheet-Data record"
   [pair]
   (let [title (name (first pair))
         conf-map (second pair)
         headers (:headers conf-map)
         files (:files conf-map)
+        dirs (:dirs conf-map)
         split-item (:split conf-map)]
-    (->Sheet-Data title files headers split-item)))
+    (->Sheet-Data title files dirs headers split-item)))
 
 (defn read-config
+  "Read in config file and convert to list of Sheet-Data records"
   [conf-file-path]
   (with-open [r (java.io.PushbackReader. (io/reader conf-file-path))]
-    (let [edn-seq (repeatedly (partial edn/read {:eof :end} r))
-          conf-seq (partition 2 (take-while (partial not= :end) edn-seq))]
+    (let [edn-seq (repeatedly (partial edn/read {:eof :eof} r))
+          conf-seq (partition 2 (take-while (partial not= :eof) edn-seq))]
       (doall (map parse-sheet-data conf-seq)))))
 
+(defn build-file-arr
+  [files dirs]
+  (loop [file-acc files
+         remain-dirs dirs]
+    (let [dir (first remain-dirs)]
+      (if dir
+        (let [dir-seq (file-seq (io/file dir))
+              filtered-dirs (remove #(.isDirectory %) dir-seq)
+              dir-files (map #(.getPath %) filtered-dirs)]
+          (recur (concat file-acc dir-files) (rest remain-dirs)))
+        file-acc))))
+  
 (defn -main
+  "Takes in a path to a config file, parses it, processes the files pointed to in the
+  config, and exports the definitions to a .xlsx file."
   [& args]
   (io/delete-file outputfile true)
   (if-let [conf-file-path (nth args 0 nil)]
@@ -130,16 +149,17 @@
           (let [filenames (:files sheet)
                 headers (:headers sheet)
                 title (:title sheet)
+                dirs (:dirs sheet)
                 splitfield (:split-item sheet)]
             (if splitfield
-              (->> filenames
+              (->> (build-file-arr filenames dirs)
                   (readin)
                   (maptoarr headers)
                   (columns-to-rows)
                   (map #(split-entries % (.indexOf headers splitfield)))
                   (mapcat identity)
                   (export title))
-              (->> filenames
+              (->> (build-file-arr filenames dirs)
                   (readin)
                   (maptoarr headers)
                   (columns-to-rows)
