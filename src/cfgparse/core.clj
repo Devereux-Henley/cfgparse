@@ -24,18 +24,21 @@
 (defn chunkfile 
   "Chunks a file into a map of definitions ordered by number
   '('foo\tbar') {} 0 => {0 {:foo 'bar'} 1 {}}"
-  [lines accumulator current-count]
-  (if-let [line (first lines)]
-    (let [trimmedline (trim line)]
-      (if (or (starts-with? trimmedline "define") (starts-with? trimmedline "#") (blank? trimmedline))
-        (chunkfile (rest lines) accumulator current-count)
-        (if (starts-with? trimmedline "}")
-          (chunkfile (rest lines) (assoc accumulator (inc current-count) {}) (inc current-count))
-          (let [bits (split trimmedline #"\s+" 2)
-                linekey (keyword (first bits))
-                linevalue (trim (last bits))]
-            (chunkfile (rest lines) (assoc-in accumulator [current-count linekey] linevalue) current-count)))))
-    accumulator))
+  [lines current-map current-count]
+  (loop [remainder lines
+         acc current-map
+         cnt current-count]
+    (if-let [line (first remainder)]
+      (let [trim-line (trim line)]
+        (if (or (starts-with? trim-line "define") (starts-with? trim-line "#") (blank? trim-line))
+          (recur (rest remainder) acc cnt)
+          (if (starts-with? trim-line "}")
+            (recur (rest remainder) (assoc acc (inc cnt) {}) (inc cnt))
+            (let [bits (split trim-line #"\s+" 2)
+                  line-key (keyword (first bits))
+                  line-value (trim (last bits))]
+              (recur (rest remainder) (assoc-in acc [cnt line-key] line-value) cnt)))))
+      acc)))
 
 (defn chunkfile-wrap
   "Wraps chunkfile by opening input file and initializing map at a specified count
@@ -132,8 +135,8 @@
     (let [dir (first remain-dirs)]
       (if dir
         (let [dir-seq (file-seq (io/file dir))
-              filtered-dirs (remove #(.isDirectory %) dir-seq)
-              dir-files (map #(.getPath %) filtered-dirs)]
+              filter-dirs (remove #(.isDirectory %) dir-seq)
+              dir-files (map #(.getPath %) filter-dirs)]
           (recur (concat file-acc dir-files) (rest remain-dirs)))
         file-acc))))
   
