@@ -7,14 +7,9 @@
 
 (defn parse-sheet-data
   "Convert config file kv-pair to Sheet-Data record"
-  [pair]
-  (let [title (name (first pair))
-        conf-map (second pair)
-        headers (:headers conf-map)
-        files (:files conf-map)
-        dirs (:dirs conf-map)
-        split-item (:split conf-map)]
-    (->Sheet-Data title files dirs headers split-item)))
+  [[title {:keys [headers files dirs split]}]]
+  (let [title (name title)]
+    (->Sheet-Data title files dirs headers split)))
 
 (defn read-config
   "Read in config file and convert to list of Sheet-Data records"
@@ -27,11 +22,10 @@
 (defn build-file-arr
   [files dirs]
   (loop [file-acc files
-         remain-dirs dirs]
-    (let [dir (first remain-dirs)]
-      (if dir
-        (let [dir-seq (file-seq (io/file dir))
-              filter-dirs (remove #(.isDirectory %) dir-seq)
-              dir-files (map #(.getPath %) filter-dirs)]
-          (recur (concat file-acc dir-files) (rest remain-dirs)))
-        file-acc))))
+         [dir & dirs] dirs]
+    (if dir
+      (let [dir-seq (file-seq (io/file dir))
+            filter-dirs (remove #(.isDirectory %) dir-seq)
+            dir-files (map #(.getPath %) filter-dirs)]
+        (recur (concat file-acc dir-files) dirs))
+      file-acc)))
