@@ -24,25 +24,25 @@
 (defn chunkfile 
   "Chunks a file into a map of definitions ordered by number
   '('foo\tbar') {} 0 => {0 {:foo 'bar'} 1 {}}"
-  [lines current-map current-count]
-  (loop [remainder lines
+  [file-body current-map current-count]
+  (loop [[line & lines] file-body
          acc current-map
          cnt current-count]
-    (if-let [line (first remainder)]
+    (if line
       (let [trim-line (trim line)]
         (if (or (starts-with? trim-line "define") (starts-with? trim-line "#") (blank? trim-line))
-          (recur (rest remainder) acc cnt)
+          (recur lines acc cnt)
           (if (starts-with? trim-line "}")
-            (recur (rest remainder) (assoc acc (inc cnt) {}) (inc cnt))
+            (recur lines (assoc acc (inc cnt) {}) (inc cnt))
             (let [bits (split trim-line #"\s+" 2)
                   line-key (keyword (first bits))
                   line-value (trim (last bits))]
-              (recur (rest remainder) (assoc-in acc [cnt line-key] line-value) cnt)))))
+              (recur lines (assoc-in acc [cnt line-key] line-value) cnt)))))
       acc)))
 
 (defn chunkfile-wrap
   "Wraps chunkfile by opening input file and initializing map at a specified count
-  'foo.cfg' => {0 {:command_name 'wiz'}}"
+  0 'foo.cfg' => {0 {:command_name 'wiz'}}"
   [current-count filename]
   (with-open [rdr (io/reader filename)]
     (let [file (line-seq rdr)]
@@ -53,14 +53,13 @@
   "takes a list of filenames and reads the files into a map.
   ['foo.cfg' 'bar.cfg'] => {0 {:command_name 'wiz'} 1 {:command_name 'woz'}}"
   [filenames]
-  (loop [file (first filenames)
-         files (rest filenames)
+  (loop [[file & files] filenames
          acc {}]
     (if file
       (->>  file
            (chunkfile-wrap (count acc))
            (merge acc)
-           (recur (first files) (rest files)))
+           (recur files))
       acc)))    
 
 (defn columns-to-rows
@@ -91,7 +90,7 @@
         (recur (rest split-list) (conj acc (assoc arr idx split-item)))
         acc))))
 
-(defn maptoarr
+(defn map-to-arr
   "Converts file map to 2d vector
   {0 {:foo 'bar' :cat 'dog'} 1 {:foo 'baz' :cat 'bat'}} => [['bar' 'baz'] ['dog' 'bat']]"
   [headers input-map]
@@ -115,23 +114,19 @@
     (if (.exists (io/as-file conf-file-path))
       (let [sheets (config/read-config conf-file-path)]
         (doseq [sheet sheets]
-          (let [filenames (:files sheet)
-                headers (:headers sheet)
-                title (:title sheet)
-                dirs (:dirs sheet)
-                splitfield (:split-item sheet)]
-            (if splitfield
-              (->> (config/build-file-arr filenames dirs)
-                  (readin)
-                  (maptoarr headers)
-                  (columns-to-rows)
-                  (map #(split-entries % (.indexOf headers splitfield)))
-                  (mapcat identity)
-                  (export title))
-              (->> (config/build-file-arr filenames dirs)
-                  (readin)
-                  (maptoarr headers)
-                  (columns-to-rows)
-                  (export title))))))
+          (let [{:keys [files headers title dirs split-item]} sheet]
+            (if split-item
+              (->> (config/build-file-arr files dirs)
+                   (readin)
+                   (map-to-arr headers)
+                   (columns-to-rows)
+                   (map #(split-entries % (.indexOf headers split-item)))
+                   (mapcat identity)
+                   (export title))
+              (->> (config/build-file-arr files dirs)
+                   (readin)
+                   (map-to-arr headers)
+                   (columns-to-rows)
+                   (export title))))))
       (println (str conf-file-path " could not be found.")))
     (println "cfgparse requires relative configuration file path as first argument."))) 

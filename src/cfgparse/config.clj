@@ -2,7 +2,6 @@
  (:require [clojure.edn :as edn]
            [clojure.java.io :as io]))
             
-
 (defrecord Sheet-Data
   [title files dirs headers split-item])
 
