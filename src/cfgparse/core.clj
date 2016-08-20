@@ -34,9 +34,9 @@
           (recur lines acc cnt)
           (if (starts-with? trim-line "}")
             (recur lines (assoc acc (inc cnt) {}) (inc cnt))
-            (let [bits (split trim-line #"\s+" 2)
-                  line-key (keyword (first bits))
-                  line-value (trim (last bits))]
+            (let [[first-bit second-bit] (split trim-line #"\s+" 2)
+                  line-key (keyword first-bit)
+                  line-value (trim second-bit)]
               (recur lines (assoc-in acc [cnt line-key] line-value) cnt)))))
       acc)))
 
@@ -62,11 +62,11 @@
            (recur files))
       acc)))    
 
-(defn columns-to-rows
+(defn col-to-rows
   "Inverts a 2d vector.
-  [['foo' 'bar'] ['baz' 'boo']] -> [['foo' 'baz'] ['bar' 'boo']]"
+  [['foo' 'bar'] ['boo' 'zar']] -> [['foo' 'boo'] ['bar' 'zar']]"
   [colls]
-  (partition (count colls) (apply interleave colls)))
+  (apply (partial mapv vector) colls))
 
 (defn create-entry
   "Updates array with new entry from input-chunk that matches headers
@@ -77,24 +77,23 @@
     (mapv
       conj
       arr
-      (vec (map #(if-let [hval ((keyword %) input-chunk)] hval "") headers)))))
+      (mapv #(if-let [hval ((keyword %) input-chunk)] hval "") headers))))
 
 (defn split-entries
   "Creates duplicate rows based on comma split.
   '('foo' 'bar,baz') => [['foo' 'bar] ['foo' 'baz']]"
-  [list-input idx]
-  (let [arr (vec list-input)]
-    (loop [split-list (split (get arr idx) #",")
-           acc []]
-      (if-let [split-item (first split-list)]
-        (recur (rest split-list) (conj acc (assoc arr idx split-item)))
-        acc))))
+  [arr idx]
+  (loop [split-list (split (get arr idx) #",")
+         acc []]
+    (if-let [split-item (first split-list)]
+      (recur (rest split-list) (conj acc (assoc arr idx split-item)))
+      acc)))
 
 (defn map-to-arr
   "Converts file map to 2d vector
   {0 {:foo 'bar' :cat 'dog'} 1 {:foo 'baz' :cat 'bat'}} => [['bar' 'baz'] ['dog' 'bat']]"
   [headers input-map]
-  (let [arr (vec (map #(vector %) headers))
+  (let [arr (mapv #(vector %) headers)
         input-count (count input-map)]
     (loop [cnt 0
            output-array arr]
@@ -119,14 +118,14 @@
               (->> (config/build-file-arr files dirs)
                    (readin)
                    (map-to-arr headers)
-                   (columns-to-rows)
-                   (map #(split-entries % (.indexOf headers split-item)))
+                   (col-to-rows)
+                   (mapv #(split-entries % (.indexOf headers split-item)))
                    (mapcat identity)
                    (export title))
               (->> (config/build-file-arr files dirs)
                    (readin)
                    (map-to-arr headers)
-                   (columns-to-rows)
+                   (col-to-rows)
                    (export title))))))
       (println (str conf-file-path " could not be found.")))
     (println "cfgparse requires relative configuration file path as first argument."))) 
