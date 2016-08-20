@@ -107,25 +107,25 @@
 (defn -main
   "Takes in a path to a config file, parses it, processes the files pointed to in the
   config, and exports the definitions to a .xlsx file."
-  [& args]
-  (io/delete-file outputfile true)
-  (if-let [conf-file-path (nth args 0 nil)]
-    (if (.exists (io/as-file conf-file-path))
-      (let [sheets (config/read-config conf-file-path)]
-        (doseq [sheet sheets]
-          (let [{:keys [files headers title dirs split-item]} sheet]
-            (if split-item
-              (->> (config/build-file-arr files dirs)
-                   (readin)
-                   (map-to-arr headers)
-                   (col-to-rows)
-                   (mapv #(split-entries % (.indexOf headers split-item)))
-                   (mapcat identity)
-                   (export title))
-              (->> (config/build-file-arr files dirs)
-                   (readin)
-                   (map-to-arr headers)
-                   (col-to-rows)
-                   (export title))))))
-      (println (str conf-file-path " could not be found.")))
-    (println "cfgparse requires relative configuration file path as first argument."))) 
+  ([]
+   (println "cfgparse requires a relative path to a configuration file as the first argument. e.g. 'cfgparse config.edn'"))
+  ([conf-file-path & args]
+   (io/delete-file outputfile true)
+   (if (.exists (io/as-file conf-file-path))
+     (let [sheets (config/read-config conf-file-path)]
+       (doseq [sheet sheets]
+         (let [{:keys [files headers title dirs split-item]} sheet]
+           (if split-item
+             (->> (config/build-file-arr files dirs)
+                  (readin)
+                  (map-to-arr headers)
+                  (col-to-rows)
+                  (mapv #(split-entries % (.indexOf headers split-item)))
+                  (mapcat identity)
+                  (export title))
+             (->> (config/build-file-arr files dirs)
+                  (readin)
+                  (map-to-arr headers)
+                  (col-to-rows)
+                  (export title))))))
+     (println (str conf-file-path " could not be found."))))) 
