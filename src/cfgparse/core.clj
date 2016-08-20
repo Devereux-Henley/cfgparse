@@ -85,8 +85,8 @@
   [arr idx]
   (loop [split-list (split (get arr idx) #",")
          acc []]
-    (if-let [split-item (first split-list)]
-      (recur (rest split-list) (conj acc (assoc arr idx split-item)))
+    (if-let [[split-item & remaining-list] split-list]
+      (recur remaining-list (conj acc (assoc arr idx split-item)))
       acc)))
 
 (defn map-to-arr
