@@ -33,7 +33,7 @@
         (if (or (starts-with? trim-line "define") (starts-with? trim-line "#") (blank? trim-line))
           (recur lines acc cnt)
           (if (starts-with? trim-line "}")
-            (recur lines (assoc acc (inc cnt) {}) (inc cnt))
+            (recur lines acc (inc cnt))
             (let [[first-bit second-bit] (split trim-line #"\s+" 2)
                   line-key (keyword first-bit)
                   line-value (trim second-bit)]
@@ -46,7 +46,7 @@
   [current-count filename]
   (with-open [rdr (io/reader filename)]
     (let [file (line-seq rdr)]
-      (chunkfile (rest file) {current-count {}} current-count))))
+      (chunkfile file {current-count {}} current-count))))
         
 
 (defn readin
