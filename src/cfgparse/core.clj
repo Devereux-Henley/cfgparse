@@ -84,10 +84,10 @@
   '('foo' 'bar,baz') => [['foo' 'bar] ['foo' 'baz']]"
   [arr idx]
   (loop [split-list (split (get arr idx) #",")
-         acc []]
+         acc (transient [])]
     (if-let [[split-item & remaining-list] split-list]
-      (recur remaining-list (conj acc (assoc arr idx split-item)))
-      acc)))
+      (recur remaining-list (conj! acc (assoc arr idx split-item)))
+      (persistent! acc))))
 
 (defn map-to-arr
   "Converts file map to 2d vector
