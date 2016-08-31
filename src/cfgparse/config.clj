@@ -27,5 +27,5 @@
       (let [dir-seq (file-seq (io/file dir))
             filter-dirs (remove #(.isDirectory %) dir-seq)
             dir-files (map #(.getPath %) filter-dirs)]
-        (recur (concat file-acc dir-files) dirs))
+        (recur (apply (partial conj file-acc) dir-files) dirs))
       file-acc)))

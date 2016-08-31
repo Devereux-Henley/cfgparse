@@ -17,11 +17,10 @@
     (let [wb (xl/load-workbook outputfile)]
       (xl/add-rows! (xl/add-sheet! wb title) outputdata)
       (xl/save-workbook! outputfile wb))
-    (let [wb (xl/create-workbook title
-                                 outputdata)]
+    (let [wb (xl/create-workbook title outputdata)]
       (xl/save-workbook! outputfile wb))))
 
-(defn chunkfile 
+(defn chunkfile
   "Chunks a file into a map of definitions ordered by number
   '('foo\tbar') {} 0 => {0 {:foo 'bar'} 1 {}}"
   [file-body current-map current-count]
@@ -47,7 +46,6 @@
   (with-open [rdr (io/reader filename)]
     (let [file (line-seq rdr)]
       (chunkfile file {current-count {}} current-count))))
-        
 
 (defn readin
   "takes a list of filenames and reads the files into a map.
@@ -60,7 +58,7 @@
            (chunkfile-wrap (count acc))
            (merge acc)
            (recur files))
-      acc)))    
+      acc)))
 
 (defn col-to-rows
   "Inverts a 2d vector.
@@ -103,7 +101,7 @@
               new-arr (create-entry headers output-array current-chunk)
               incremented-count (inc cnt)]
           (recur incremented-count new-arr))))))
- 
+
 (defn -main
   "Takes in a path to a config file, parses it, processes the files pointed to in the
   config, and exports the definitions to a .xlsx file."
@@ -128,4 +126,4 @@
                   (map-to-arr headers)
                   (col-to-rows)
                   (export title))))))
-     (println (str conf-file-path " could not be found."))))) 
+     (println (str conf-file-path " could not be found.")))))
