@@ -79,7 +79,7 @@
 
 (defn split-entries
   "Creates duplicate rows based on comma split.
-  '('foo' 'bar,baz') => [['foo' 'bar] ['foo' 'baz']]"
+  '('foo' 'bar,baz') 1 => [['foo' 'bar] ['foo' 'baz']]"
   [arr idx]
   (loop [split-list (split (get arr idx) #",")
          acc (transient [])]
@@ -89,7 +89,7 @@
 
 (defn map-to-arr
   "Converts file map to 2d vector
-  {0 {:foo 'bar' :cat 'dog'} 1 {:foo 'baz' :cat 'bat'}} => [['bar' 'baz'] ['dog' 'bat']]"
+  ['foo' 'cat'] {0 {:foo 'bar' :cat 'dog'} 1 {:foo 'baz' :cat 'bat'}} => [['bar' 'baz'] ['dog' 'bat']]"
   [headers input-map]
   (let [arr (mapv #(vector %) headers)
         input-count (count input-map)]
@@ -97,7 +97,7 @@
            output-array arr]
       (if (> cnt input-count)
         output-array
-        (let [current-chunk (get input-map cnt)
+        (let [current-chunk (input-map cnt)
               new-arr (create-entry headers output-array current-chunk)
               incremented-count (inc cnt)]
           (recur incremented-count new-arr))))))
