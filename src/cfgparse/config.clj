@@ -20,12 +20,10 @@
      (doall (map parse-sheet-data conf-seq)))))
 
 (defn build-file-arr
-  [files dirs]
-  (loop [file-acc files
-         [dir & dirs] dirs]
-    (if dir
-      (let [dir-seq (file-seq (io/file dir))
-            filter-dirs (remove #(.isDirectory %) dir-seq)
-            dir-files (map #(.getPath %) filter-dirs)]
-        (recur (apply (partial conj file-acc) dir-files) dirs))
-      file-acc)))
+  [file-acc [dir & dirs]]
+  (if dir
+    (let [dir-seq (file-seq (io/file dir))
+          filter-dirs (remove #(.isDirectory %) dir-seq)
+          dir-files (map #(.getPath %) filter-dirs)]
+      (recur (apply (partial conj file-acc) dir-files) dirs))
+    file-acc))

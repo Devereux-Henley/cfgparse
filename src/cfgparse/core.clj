@@ -1,9 +1,9 @@
 (ns cfgparse.core
- (:require [dk.ative.docjure.spreadsheet :as xl]
-           [clojure.java.io :as io]
-           [clojure.string :refer [split starts-with? blank? trim]]
-           [cfgparse.config :as config])
- (:gen-class))
+  (:require [dk.ative.docjure.spreadsheet :as xl]
+            [clojure.java.io :as io]
+            [clojure.string :refer [split starts-with? blank? trim]]
+            [cfgparse.config :as config])
+  (:gen-class))
 
 ;;Name of excel output file
 (def outputfile
@@ -23,21 +23,18 @@
 (defn chunkfile
   "Chunks a file into a map of definitions ordered by number
   '('foo\tbar') {} 0 => {0 {:foo 'bar'} 1 {}}"
-  [file-body current-map current-count]
-  (loop [[line & lines] file-body
-         acc current-map
-         cnt current-count]
-    (if line
-      (let [trim-line (trim line)]
-        (if (or (starts-with? trim-line "define") (starts-with? trim-line "#") (blank? trim-line))
-          (recur lines acc cnt)
-          (if (starts-with? trim-line "}")
-            (recur lines acc (inc cnt))
-            (let [[first-bit second-bit] (split trim-line #"\s+" 2)
-                  line-key (keyword first-bit)
-                  line-value (trim second-bit)]
-              (recur lines (assoc-in acc [cnt line-key] line-value) cnt)))))
-      acc)))
+  [[line & lines] acc cnt]
+  (if line
+    (let [trim-line (trim line)]
+      (if (or (starts-with? trim-line "define") (starts-with? trim-line "#") (blank? trim-line))
+        (recur lines acc cnt)
+        (if (starts-with? trim-line "}")
+          (recur lines acc (inc cnt))
+          (let [[first-bit second-bit] (split trim-line #"\s+" 2)
+                line-key (keyword first-bit)
+                line-value (trim second-bit)]
+            (recur lines (assoc-in acc [cnt line-key] line-value) cnt)))))
+    acc))
 
 (defn chunkfile-wrap
   "Wraps chunkfile by opening input file and initializing map at a specified count
@@ -47,18 +44,18 @@
     (let [file (line-seq rdr)]
       (chunkfile file {current-count {}} current-count))))
 
-(defn readin
+(defn read-in-files
   "takes a list of filenames and reads the files into a map.
   ['foo.cfg' 'bar.cfg'] => {0 {:command_name 'wiz'} 1 {:command_name 'woz'}}"
-  [filenames]
-  (loop [[file & files] filenames
-         acc {}]
-    (if file
-      (->>  file
-           (chunkfile-wrap (count acc))
-           (merge acc)
-           (recur files))
-      acc)))
+  ([filenames]
+   (read-in-files filenames {}))
+  ([[file & files] acc]
+   (if file
+     (->> file
+          (chunkfile-wrap (count acc))
+          (merge acc)
+          (recur files))
+    acc)))
 
 (defn col-to-rows
   "Inverts a 2d vector.
@@ -115,14 +112,14 @@
          (let [{:keys [files headers title dirs split-item]} sheet]
            (if split-item
              (->> (config/build-file-arr files dirs)
-                  (readin)
+                  (read-in-files)
                   (map-to-arr headers)
                   (col-to-rows)
                   (mapv #(split-entries % (.indexOf headers split-item)))
                   (mapcat identity)
                   (export title))
              (->> (config/build-file-arr files dirs)
-                  (readin)
+                  (read-in-files)
                   (map-to-arr headers)
                   (col-to-rows)
                   (export title))))))
