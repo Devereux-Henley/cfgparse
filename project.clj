@@ -1,4 +1,4 @@
-(defproject cfgparse "0.1.0"
+(defproject cfgparse "0.2.0"
  :description "A program to transform .cfg files for nagios configuration to a readable excel format"
  :url "https://github.com/Devereux-Henley/cfgparse"
  :license {:name "Eclipse Public License"
