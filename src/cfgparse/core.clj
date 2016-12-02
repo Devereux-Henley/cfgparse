@@ -99,7 +99,18 @@
               incremented-count (inc cnt)]
           (recur incremented-count new-arr))))))
 
-(defn split-process
+(defn- normal-process
+  "Processes each definition from nagios files into a row. Takes a config/Sheet-Data record as input."
+  [{:keys [files headers title dirs]}]
+  (->> 
+    (config/build-file-arr files dirs)
+    (read-in-files)
+    (map-to-arr headers)
+    (col-to-rows)
+    (export title)))
+
+(defn- split-process
+  "Splits a specific field on comma into new rows from within each nagios definition. Takes a config/Sheet-Data record as input."
   [{:keys [files headers title dirs split-item]}]
   (->> 
     (config/build-file-arr files dirs)
@@ -108,15 +119,6 @@
     (col-to-rows)
     (mapv #(split-entries % (.indexOf headers split-item)))
     (mapcat identity)
-    (export title)))
-
-(defn normal-process
-  [{:keys [files headers title dirs]}]
-  (->> 
-    (config/build-file-arr files dirs)
-    (read-in-files)
-    (map-to-arr headers)
-    (col-to-rows)
     (export title)))
 
 (comment "This multimethod dispatches based on whether or not we need to split a field into individual rows")
