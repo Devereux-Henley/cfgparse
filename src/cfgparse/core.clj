@@ -55,7 +55,7 @@
           (chunkfile-wrap (count acc))
           (merge acc)
           (recur files))
-    acc)))
+     acc)))
 
 (defn col-to-rows
   "Inverts a 2d vector.
@@ -99,6 +99,34 @@
               incremented-count (inc cnt)]
           (recur incremented-count new-arr))))))
 
+(defn split-process
+  [{:keys [files headers title dirs split-item]}]
+  (->> 
+    (config/build-file-arr files dirs)
+    (read-in-files)
+    (map-to-arr headers)
+    (col-to-rows)
+    (mapv #(split-entries % (.indexOf headers split-item)))
+    (mapcat identity)
+    (export title)))
+
+(defn normal-process
+  [{:keys [files headers title dirs]}]
+  (->> 
+    (config/build-file-arr files dirs)
+    (read-in-files)
+    (map-to-arr headers)
+    (col-to-rows)
+    (export title)))
+
+(comment "This multimethod dispatches based on whether or not we need to split a field into individual rows")
+(defmulti process
+  (fn [{:keys [split-item]}] split-item))
+
+(defmethod process nil [sheet] (normal-process sheet))
+
+(defmethod process :default [sheet] (split-process sheet))
+
 (defn -main
   "Takes in a path to a config file, parses it, processes the files pointed to in the
   config, and exports the definitions to a .xlsx file."
@@ -109,18 +137,5 @@
    (if (.exists (io/as-file conf-file-path))
      (let [sheets (config/read-config conf-file-path)]
        (doseq [sheet sheets]
-         (let [{:keys [files headers title dirs split-item]} sheet]
-           (if split-item
-             (->> (config/build-file-arr files dirs)
-                  (read-in-files)
-                  (map-to-arr headers)
-                  (col-to-rows)
-                  (mapv #(split-entries % (.indexOf headers split-item)))
-                  (mapcat identity)
-                  (export title))
-             (->> (config/build-file-arr files dirs)
-                  (read-in-files)
-                  (map-to-arr headers)
-                  (col-to-rows)
-                  (export title))))))
+         (process sheet))) 
      (println (str conf-file-path " could not be found.")))))
